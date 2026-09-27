@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kick Moderation Alert Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/dashboard.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <div class="eyebrow">OBS • KICK • MODERATION</div>
+        <h1>Moderation Alert Studio</h1>
+        <p>أليرتات مستقلة للـTIME OUT والـBANNED مع رابط Browser Source واحد للـOBS.</p>
+      </div>
+      <div class="topbar-actions">
+        <div id="eventSwitcher" class="event-switcher hidden">
+          <button type="button" data-event="timeout" class="event-tab active">TIME OUT</button>
+          <button type="button" data-event="banned" class="event-tab">BANNED</button>
+        </div>
+        <div id="connectionPill" class="pill offline">غير مربوط</div>
+      </div>
+    </header>
+
+    <section id="connectCard" class="panel connect-panel">
+      <div>
+        <h2>ربط قناة Kick</h2>
+        <p id="connectText">سجّل دخولك في Kick ووافق على صلاحيات قراءة حسابك والاشتراك في الأحداث.</p>
+      </div>
+      <a id="connectBtn" class="btn primary" href="/auth/kick">ربط Kick</a>
+    </section>
+
+    <section id="app" class="hidden">
+      <div class="grid two">
+        <section class="panel">
+          <div class="panel-head">
+            <div><span class="kicker">OBS LINK</span><h2>رابط الأليرت</h2></div>
+            <button id="regenerateBtn" class="btn ghost">تغيير الرابط</button>
+          </div>
+          <p class="muted">حطه في OBS → Sources → Browser. المقاس المقترح 1920×1080.</p>
+          <div class="copy-row"><input id="overlayUrl" readonly /><button id="copyBtn" class="btn primary">نسخ</button></div>
+          <div class="status-row">
+            <span id="webhookStatus" class="status-dot"></span><span id="webhookText">حالة حدث Kick</span>
+            <button id="subscribeBtn" class="mini-btn">إعادة الاشتراك</button>
+          </div>
+        </section>
+
+        <section class="panel profile-panel">
+          <span class="kicker">CHANNEL</span>
+          <div class="profile"><img id="ownerAvatar" alt="" /><div><h2 id="ownerName">Kick User</h2><p id="ownerId" class="muted"></p></div></div>
+          <button id="testBtn" class="btn danger wide">تجربة أليرت TIME OUT</button>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><span class="kicker">LAYOUT</span><h2 id="layoutHeading">طريقة ظهور TIME OUT</h2></div>
+          <button id="saveBtn" class="btn primary">حفظ إعدادات TIME OUT</button>
+        </div>
+        <div class="layout-picker">
+          <button type="button" data-layout="card" class="layout-card active">
+            <div class="layout-preview card-preview"><i></i></div>
+            <b>Alert عادي</b><span>كرت صغير داخل البث</span>
+          </button>
+          <button type="button" data-layout="fullscreen" class="layout-card">
+            <div class="layout-preview full-preview"><i></i></div>
+            <b>شاشة كاملة</b><span>فيديو/صورة بالخلفية مع بيانات الحدث</span>
+          </button>
+          <button type="button" data-layout="media" class="layout-card">
+            <div class="layout-preview media-preview"><i></i></div>
+            <b>شاشة خالية كاملة</b><span>الصورة أو الفيديو فقط بدون أي نصوص</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel" id="alertSettingsPanel">
+        <span class="kicker">ALERT SETTINGS</span>
+        <h2 id="settingsHeading">إعدادات TIME OUT</h2>
+        <div class="form-grid">
+          <label>النص الرئيسي<input id="titleTemplate" /></label>
+          <label>النص الفرعي<input id="subtitleTemplate" /></label>
+          <label>لون اللمعة<input id="accent" type="color" value="#53FC18" /></label>
+          <label id="positionField">مكان الأليرت<select id="position"><option value="top">أعلى</option><option value="center">وسط</option><option value="bottom">أسفل</option></select></label>
+          <label>مدة الظهور<input id="durationMs" type="range" min="2500" max="30000" step="500" /><span id="durationLabel"></span></label>
+          <label>الصوت<input id="volume" type="range" min="0" max="1" step="0.05" /><span id="volumeLabel"></span></label>
+          <label>مدة الصوت<input id="soundDurationMs" type="range" min="500" max="30000" step="500" /><span id="soundDurationLabel"></span></label>
+        </div>
+        <div class="toggles">
+          <label><input id="showAvatar" type="checkbox" /> صورة الشخص</label>
+          <label><input id="showModerator" type="checkbox" /> اسم المود</label>
+          <label><input id="showReason" type="checkbox" /> سبب الحدث</label>
+          <label id="showDurationWrap"><input id="showDuration" type="checkbox" /> مدة التايم أوت</label>
+        </div>
+      </section>
+
+      <div class="grid two">
+        <section class="panel">
+          <span class="kicker">CUSTOM MEDIA</span>
+          <h2>شعار وصوت مخصص</h2>
+          <label>رابط الشعار<input id="customLogoUrl" placeholder="https://... أو ارفع ملف" /></label>
+          <div class="upload-row"><input id="logoFile" type="file" accept="image/*" /><button class="btn ghost" data-upload="logo">رفع الشعار</button></div>
+          <label>رابط الصوت<input id="customSoundUrl" placeholder="https://... أو ارفع ملف صوت" /></label>
+          <div class="upload-row"><input id="soundFile" type="file" accept="audio/*" /><button class="btn ghost" data-upload="sound">رفع الصوت</button></div>
+        </section>
+
+        <section class="panel" id="fullscreenOptions">
+          <span class="kicker">FULLSCREEN MEDIA</span>
+          <h2>صورة أو فيديو للشاشة الكاملة</h2>
+          <label>رابط الصورة/الفيديو<input id="fullscreenMediaUrl" placeholder="رابط مباشر اختياري" /></label>
+          <div class="upload-row">
+            <input id="fullscreenMediaFile" type="file" />
+            <button class="btn ghost" data-upload="fullscreenMedia">رفع صورة/فيديو</button>
+          </div>
+          <p class="muted">الرفع نفسه يقبل أي امتداد. تشغيل الفيديو داخل OBS يعتمد على الكودك المدعوم؛ MP4 H.264 وWebM الأكثر ضمانًا.</p>
+          <label id="dimField">تعتيم الخلفية<input id="fullscreenDim" type="range" min="0" max="0.95" step="0.05" /><span id="fullscreenDimLabel"></span></label>
+          <label><input id="videoMuted" type="checkbox" /> كتم صوت الفيديو</label>
+        </section>
+      </div>
+
+      <section class="panel diagnostic-panel">
+        <div class="panel-head">
+          <div><span class="kicker">WEBHOOK DIAGNOSTICS</span><h2>فحص أحداث المودريشن</h2></div>
+          <button id="diagnosticsBtn" class="btn ghost">فحص الآن</button>
+        </div>
+        <div class="diag-grid">
+          <div><span>Webhook URL</span><b id="diagWebhookUrl">—</b></div>
+          <div><span>HTTPS عام</span><b id="diagPublic">—</b></div>
+          <div><span>اشتراك Kick</span><b id="diagSubscription">—</b></div>
+          <div><span>آخر طلب من Kick</span><b id="diagDelivery">—</b></div>
+          <div><span>آخر Event</span><b id="diagEvent">—</b></div>
+          <div><span>آخر أليرت عُرض</span><b id="diagAccepted">—</b></div>
+        </div>
+        <div id="diagHint" class="diag-hint">اضغط فحص الآن لمعرفة حالة الربط.</div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

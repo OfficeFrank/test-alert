@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kick Moderation Overlay</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,Tahoma,sans-serif}.stage{position:fixed;inset:0;display:flex;justify-content:center;pointer-events:none;padding:60px;box-sizing:border-box}.stage.top{align-items:flex-start}.stage.center{align-items:center}.stage.bottom{align-items:flex-end}
+    .alert{--accent:#53fc18;position:relative;width:min(820px,86vw);min-height:160px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:22px;padding:24px 28px;border-radius:26px;color:#fff;background:linear-gradient(135deg,rgba(7,10,8,.96),rgba(14,20,15,.96));border:1px solid color-mix(in srgb,var(--accent) 70%,transparent);box-shadow:0 25px 60px rgba(0,0,0,.5),inset 0 0 38px color-mix(in srgb,var(--accent) 8%,transparent);opacity:0;transform:translateY(30px) scale(.94);transition:.46s cubic-bezier(.2,.85,.25,1);box-sizing:border-box}.alert.show{opacity:1;transform:translateY(0) scale(1)}.alert.hide{opacity:0;transform:translateY(-24px) scale(.97)}.avatar-wrap{position:relative}.avatar{width:108px;height:108px;border-radius:24px;object-fit:cover;border:2px solid var(--accent);background:#131313}.avatar-wrap:after{content:'!';position:absolute;left:-9px;top:-9px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#070707;font-weight:900}.title{font-size:30px;font-weight:900;margin-bottom:10px}.subtitle{font-size:17px;opacity:.82;margin-bottom:8px}.reason{font-size:14px;opacity:.68}.logo{max-width:92px;max-height:92px;object-fit:contain}.fallback-logo{font-size:18px;font-weight:900;letter-spacing:1px;color:var(--accent);writing-mode:vertical-rl}.progress{position:absolute;bottom:0;right:24px;left:24px;height:3px;background:rgba(255,255,255,.08);overflow:hidden;border-radius:999px}.progress>i{display:block;width:100%;height:100%;background:var(--accent);transform-origin:right;animation:drain linear forwards}@keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+    .fullscreen-alert,.media-only{--accent:#53fc18;position:absolute;inset:0;color:#fff;opacity:0;transform:scale(1.02);transition:.5s cubic-bezier(.2,.85,.25,1);overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;background:#050706}.fullscreen-alert.show,.media-only.show{opacity:1;transform:scale(1)}.fullscreen-alert.hide,.media-only.hide{opacity:0;transform:scale(.99)}.fs-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.fs-image{background-position:center;background-size:cover;background-repeat:no-repeat}.fs-dim{position:absolute;inset:0;background:rgba(0,0,0,var(--dim,.35));z-index:1}.fs-vignette{position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 50% 43%,transparent 0 22%,rgba(0,0,0,.18) 50%,rgba(0,0,0,.65) 100%)}.fs-core{position:relative;z-index:2;width:min(1050px,88vw);display:flex;flex-direction:column;align-items:center}.fs-kicker{font-size:13px;letter-spacing:7px;color:var(--accent);font-weight:900;margin-bottom:24px}.fs-avatar-wrap{position:relative;margin-bottom:25px}.fs-avatar-wrap:before,.fs-avatar-wrap:after{content:'';position:absolute;border-radius:50%;inset:-14px;border:1px solid var(--accent);opacity:.48}.fs-avatar-wrap:after{inset:-30px;opacity:.16}.fs-avatar{width:180px;height:180px;border-radius:50%;object-fit:cover;border:4px solid var(--accent);box-shadow:0 0 60px rgba(0,0,0,.65)}.fs-title{font-size:clamp(42px,5vw,78px);font-weight:900;letter-spacing:-2px;text-shadow:0 10px 40px rgba(0,0,0,.8);margin-bottom:18px}.fs-subtitle{font-size:clamp(18px,2vw,28px);opacity:.88;margin-bottom:14px;text-shadow:0 5px 20px rgba(0,0,0,.8)}.fs-reason{font-size:clamp(14px,1.4vw,20px);opacity:.75;text-shadow:0 5px 20px rgba(0,0,0,.8)}.fs-logo{position:absolute;right:55px;top:45px;z-index:3;max-width:130px;max-height:90px;object-fit:contain}.fs-badge{position:absolute;left:55px;top:45px;z-index:3;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:4px}.fs-progress{position:absolute;z-index:4;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.07)}.fs-progress i{display:block;width:100%;height:100%;background:var(--accent);transform-origin:right;animation:drain linear forwards}
+    .media-only .fs-media{z-index:0}.media-only .blank{position:absolute;inset:0;background:transparent}
+  </style>
+</head>
+<body>
+  <div id="stage" class="stage center"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const token=location.pathname.split('/').pop();
+    const stage=document.getElementById('stage');
+    let settings={timeout:null,banned:null},queue=[],busy=false;
+    const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    const replace=(tpl,e)=>String(tpl||'').replaceAll('{username}',e.username||'').replaceAll('{moderator}',e.moderator||'').replaceAll('{duration}',e.duration||'').replaceAll('{reason}',e.reason||'');
+    const imageRx=/\.(png|jpe?g|gif|webp|bmp|svg|avif|apng|ico|tiff?|heic|heif)(?:$|[?#])/i;
+    const isImage=url=>imageRx.test(String(url||''));
+    const mediaHtml=(url,s)=>{
+      if(!url)return '';
+      if(isImage(url))return `<div class="fs-media fs-image" style="background-image:url('${esc(url)}')"></div>`;
+      return `<video class="fs-media" src="${esc(url)}" autoplay loop playsinline ${s.videoMuted===false?'':'muted'} preload="auto"></video>`;
+    };
+    async function load(){const r=await fetch('/api/overlay-config/'+token,{cache:'no-store'});if(!r.ok)return;settings=(await r.json()).settings||settings}
+    function cfg(e){return settings?.[e.type]||settings?.timeout||{}}
+    function applyPosition(s){stage.className='stage '+((s.layoutMode==='fullscreen'||s.layoutMode==='media')?'center':(s.position||'center'))}
+    function sound(s){
+      if(!s?.customSoundUrl)return;
+      const a=new Audio(s.customSoundUrl);
+      a.volume=Math.max(0,Math.min(1,Number(s.volume??.75)));
+      const maxMs=Math.max(500,Number(s.soundDurationMs||6500));
+      let timer=null;
+      const stop=()=>{try{a.pause();a.currentTime=0}catch{}};
+      a.play().then(()=>{timer=setTimeout(stop,maxMs)}).catch(()=>{});
+      a.addEventListener('ended',()=>{if(timer)clearTimeout(timer)},{once:true});
+    }
+    function renderCard(e,s){
+      const dur=Number(s.durationMs||6500);
+      const logo=s.customLogoUrl?`<img class="logo" src="${esc(s.customLogoUrl)}">`:`<div class="fallback-logo">KICK</div>`;
+      const avatar=s.showAvatar?`<div class="avatar-wrap"><img class="avatar" src="${esc(e.avatar||'https://kick.com/img/default-profile-pictures/default2.jpeg')}"></div>`:'';
+      const subtitle=(s.showDuration||s.showModerator)?`<div class="subtitle">${esc(replace(s.subtitleTemplate,e))}</div>`:'';
+      const reason=s.showReason?`<div class="reason">السبب: ${esc(e.reason||'بدون سبب')}</div>`:'';
+      const el=document.createElement('div');el.className='alert';el.style.setProperty('--accent',s.accent||'#53fc18');
+      el.innerHTML=`${avatar}<div class="content"><div class="title">${esc(replace(s.titleTemplate,e))}</div>${subtitle}${reason}</div>${logo}<div class="progress"><i style="animation-duration:${dur}ms"></i></div>`;
+      return el;
+    }
+    function renderFullscreen(e,s){
+      const dur=Number(s.durationMs||6500),media=s.fullscreenMediaUrl||s.fullscreenBackgroundUrl||'';
+      const avatar=s.showAvatar?`<div class="fs-avatar-wrap"><img class="fs-avatar" src="${esc(e.avatar||'https://kick.com/img/default-profile-pictures/default2.jpeg')}"></div>`:'';
+      const subtitle=(s.showDuration||s.showModerator)?`<div class="fs-subtitle">${esc(replace(s.subtitleTemplate,e))}</div>`:'';
+      const reason=s.showReason?`<div class="fs-reason">السبب: ${esc(e.reason||'بدون سبب')}</div>`:'';
+      const logo=s.customLogoUrl?`<img class="fs-logo" src="${esc(s.customLogoUrl)}">`:'';
+      const label=e.type==='banned'?'BANNED':'TIMEOUT';
+      const el=document.createElement('div');el.className='fullscreen-alert';el.style.setProperty('--accent',s.accent||'#53fc18');el.style.setProperty('--dim',Number(s.fullscreenDim??.35));
+      el.innerHTML=`${mediaHtml(media,s)}<div class="fs-dim"></div><div class="fs-vignette"></div>${logo}<div class="fs-badge">MODERATION // ${label}</div><div class="fs-core"><div class="fs-kicker">${label}</div>${avatar}<div class="fs-title">${esc(replace(s.titleTemplate,e))}</div>${subtitle}${reason}</div><div class="fs-progress"><i style="animation-duration:${dur}ms"></i></div>`;
+      return el;
+    }
+    function renderMediaOnly(e,s){
+      const media=s.fullscreenMediaUrl||s.fullscreenBackgroundUrl||'';
+      const el=document.createElement('div');el.className='media-only';
+      el.innerHTML=mediaHtml(media,s)||'<div class="blank"></div>';
+      return el;
+    }
+    function render(e){
+      const s=cfg(e),dur=Number(s.durationMs||6500);
+      applyPosition(s);
+      const el=s.layoutMode==='media'?renderMediaOnly(e,s):(s.layoutMode==='fullscreen'?renderFullscreen(e,s):renderCard(e,s));
+      stage.appendChild(el);
+      const v=el.querySelector('video');
+      if(v){v.volume=Math.max(0,Math.min(1,Number(s.volume??.75)));v.play().catch(()=>{})}
+      requestAnimationFrame(()=>el.classList.add('show'));
+      sound(s);
+      setTimeout(()=>{el.classList.add('hide');setTimeout(()=>{el.remove();busy=false;next()},600)},dur);
+    }
+    function next(){if(busy||!queue.length)return;busy=true;render(queue.shift())}
+    const socket=io({transports:['websocket','polling']});
+    socket.on('connect',()=>socket.emit('join-overlay',token));
+    socket.on('moderation-alert',e=>{queue.push(e);next()});
+    socket.on('timeout-alert',e=>{queue.push(e);next()}); // compatibility with older server events
+    socket.on('settings-updated',s=>{settings=s||settings});
+    load();
+  </script>
+</body>
+</html>
