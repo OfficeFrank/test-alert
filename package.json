@@ -1,0 +1,23 @@
+{
+  "name": "kick-timeout-alert",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kick timeout alerts with OBS browser-source overlay",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "multer": "^1.4.5-lts.2",
+    "socket.io": "^4.8.1"
+  }
+}
